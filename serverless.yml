@@ -1,0 +1,91 @@
+service: vanna-backend
+
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+  - serverless-domain-manager
+  - serverless-plugin-warmup
+  - serverless-dotenv-plugin
+  - serverless-plugin-common-layers
+
+
+provider:
+  name: aws
+  region: ${env:DEPLOYMENT_REGION}
+  runtime: nodejs12.x
+  role: arn:aws:iam::XXXXX:role/XXXXX
+  deploymentBucket:
+    name: ${self:custom.bucketname}
+    maxPreviousDeploymentArtifacts: 10
+  lambdaHashingVersion: 20201221
+  apiGateway:
+    shouldStartNameWithService: true
+  layers:
+    - arn:aws:lambda:${env:DEPLOYMENT_REGION}:XXXXXX:layer:XXXXXXXX:5
+  environment:
+    DATABASE_URI: ${ssm:/vannatok/${opt:stage}/DATABASE_URI}
+
+custom:  
+  stage: ${opt:stage, 'dev'}
+  domains:
+    stage: XXXXXX
+    prod: XXXXXX
+  customDomain:
+    basePath: "XXXX"
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    stage: "${self:custom.stage}"
+    certificateName: '*.XXXXX.XXX'
+    createRoute53Record: true
+    serverless-offline:
+      httpsProtocol: "dev-certs"
+      port: 4000
+  bucketname: ${env:DEPLOYMENT_BUCKET_NAME}
+  isProd:
+    stage: false
+    preprod: false
+    prod: true
+  common:
+    cors: ${file(cors.yml)}
+  warmup:
+    enabled: ${self:custom.isProd.${self:custom.stage}, false} # Whether to warm up functions by default or not, enabled only on production
+    cleanFolder: false # Whether remove _warmup directory with WarmUp lambda or not
+    folderName: '_warmup' # Name of the folder created for the generated warmup
+    memorySize: 256
+    vpc: false
+    events:
+      - schedule: 'cron(0/10 5-22 ? * * *)' # Run WarmUp every 10 minutes, every day, between 5:00 and 22:00 (UTC)
+    timeout: 5
+    prewarm: true # Run WarmUp immediately after a deployment lambda
+    concurrency: 1 # Warm up 1 concurrent instance
+
+
+functions:
+  getCategory:
+    handler: src/index.getCategory
+    events:
+      - http:
+          path: /v1
+          method: get
+          cors: ${self:custom.common.cors.${self:custom.stage}.defaultCache}
+  createCategory:
+    handler: src/index.createCategory
+    events:
+      - http:
+          path: /v1
+          method: get
+          cors: ${self:custom.common.cors.${self:custom.stage}.defaultCache}
+  updateCategory:
+    handler: src/index.updateCategory
+    events:
+      - http:
+          path: /v1
+          method: get
+          cors: ${self:custom.common.cors.${self:custom.stage}.defaultCache}
+  deleteCategory:
+    handler: src/index.deleteCategory
+    events:
+      - http:
+          path: /v1
+          method: get
+          cors: ${self:custom.common.cors.${self:custom.stage}.defaultCache}
